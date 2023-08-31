@@ -3,50 +3,45 @@ package filemanager
 import (
 	"fmt"
 	"io"
-	"os"
+	"sync"
+	"time"
 )
 
-func copyWithProgressBar(dst io.Writer, src io.Reader, size int64) (int64, error) {
-	//progressBar := pb.Full.Start64(size)
-	//progressBar.Set(pb.Bytes, true)
-	//
-	//n, err := io.Copy(dst, io.TeeReader(src, progressBar))
-	//if err != nil {
-	//	return 0, err
-	//}
-	//
-	//progressBar.Finish()
-
-	return 0, nil
+type CountingReader struct {
+	Reader io.Reader
+	Count  int64
+	mu     sync.Mutex // 用于保护 Count
 }
 
-func main() {
-	file, err := os.Open("source.txt")
-	if err != nil {
-		// 错误处理
-		return
-	}
-	defer file.Close()
+func (cr *CountingReader) Read(p []byte) (n int, err error) {
+	n, err = cr.Reader.Read(p)
+	cr.mu.Lock()
+	cr.Count += int64(n)
+	cr.mu.Unlock()
+	return n, err
+}
 
-	fileInfo, err := file.Stat()
-	if err != nil {
-		// 错误处理
-		return
+func ProgressBar(cr *CountingReader, finishChan chan struct{}) {
+	tick := time.Tick(100 * time.Millisecond)
+	finish := false
+	for {
+		if finish {
+			break
+		}
+		select {
+		case <-tick:
+			cr.mu.Lock()
+			count := cr.Count
+			cr.mu.Unlock()
+			// 更新进度条（或者其它逻辑）
+			fmt.Printf("\rTotal bytes read from stdin: %d\n", count)
+		case <-finishChan:
+			cr.mu.Lock()
+			count := cr.Count
+			cr.mu.Unlock()
+			// 更新进度条（或者其它逻辑）
+			fmt.Printf("\rTotal bytes read from stdin: %d\n", count)
+			finish = true
+		}
 	}
-	fileSize := fileInfo.Size()
-
-	destFile, err := os.Create("destination.txt")
-	if err != nil {
-		// 错误处理
-		return
-	}
-	defer destFile.Close()
-
-	progress, err := copyWithProgressBar(destFile, file, fileSize)
-	if err != nil {
-		// 错误处理
-		return
-	}
-
-	fmt.Printf("Copy completed: %d bytes\n", progress)
 }

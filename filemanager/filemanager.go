@@ -103,12 +103,17 @@ func (f *FileManager) UploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	//ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute) // 增加超时时间为 5 分钟
 	//defer cancel()
+	cr := &CountingReader{Reader: fileStream}
+	finishChan := make(chan struct{})
+	go ProgressBar(cr, finishChan)
+
 	err = executor.StreamWithContext(context.Background(), remotecommand.StreamOptions{
-		Stdin:  fileStream,
+		Stdin:  cr,
 		Stdout: w,
 		Stderr: os.Stderr,
 		Tty:    false,
 	})
+	finishChan <- struct{}{}
 	if err != nil {
 		fmt.Println(err)
 		return
