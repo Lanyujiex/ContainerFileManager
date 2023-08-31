@@ -14,6 +14,7 @@ func main() {
 	fileManager := filemanager.FileManager{}
 
 	http.HandleFunc("/upload", fileManager.UploadHandler)
+	http.HandleFunc("/uploadChunk", fileManager.UploadHandlerChunk)
 	http.HandleFunc("/download", fileManager.DownloadHandler)
 
 	// 启动 HTTP 服务器，监听在本地的 8080 端口
