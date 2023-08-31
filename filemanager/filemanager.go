@@ -3,14 +3,16 @@ package filemanager
 import (
 	"context"
 	"fmt"
+	"log"
+	"net/http"
+	"os"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
-	"log"
-	"net/http"
-	"os"
+
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -74,6 +76,7 @@ func (f *FileManager) UploadHandler(w http.ResponseWriter, r *http.Request) {
 	containerName := r.URL.Query().Get("containerName")
 	fileName := r.URL.Query().Get("fileName")
 	filePath := r.URL.Query().Get("filePath")
+	opId := r.URL.Query().Get("opId")
 	start := r.URL.Query().Get("start") == "true"
 
 	var cmd string
@@ -101,11 +104,13 @@ func (f *FileManager) UploadHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	//ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute) // 增加超时时间为 5 分钟
+	//ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute) // 增加超时时间为 5 分钟
 	//defer cancel()
 	cr := &CountingReader{Reader: fileStream}
 	finishChan := make(chan struct{})
-	go ProgressBar(cr, finishChan)
+	key := getKey(containerName, podName, namespace, filePath, fileName, opId)
+
+	go ProgressBar(cr, finishChan, key)
 
 	err = executor.StreamWithContext(context.Background(), remotecommand.StreamOptions{
 		Stdin:  cr,

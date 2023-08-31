@@ -3,12 +3,12 @@ package main
 import (
 	"fmt"
 	"log"
-	"myfile.manager/filemanager"
 	"net/http"
+
+	"myfile.manager/filemanager"
 )
 
 func main() {
-	//fmt.Println("wo yao kaishi le ")
 	// 设置路由处理函数
 	http.HandleFunc("/", homeHandler)
 	fileManager := filemanager.FileManager{}
@@ -16,6 +16,7 @@ func main() {
 	http.HandleFunc("/upload", fileManager.UploadHandler)
 	http.HandleFunc("/uploadChunk", fileManager.UploadHandlerChunk)
 	http.HandleFunc("/download", fileManager.DownloadHandler)
+	http.HandleFunc("/progress", filemanager.ProgressSocket)
 
 	// 启动 HTTP 服务器，监听在本地的 8080 端口
 	log.Fatal(http.ListenAndServe(":8080", nil))
