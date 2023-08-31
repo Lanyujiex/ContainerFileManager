@@ -64,8 +64,10 @@ func (f *FileManager) UploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fileStream, err := createIOStream(r)
+	//fileStream, err := createTarStream(r)
 	if err != nil {
-		fmt.Fprintln(w, err)
+		fmt.Println(err)
+		return
 	}
 	namespace := r.URL.Query().Get("namespace")
 	podName := r.URL.Query().Get("podName")
@@ -73,12 +75,14 @@ func (f *FileManager) UploadHandler(w http.ResponseWriter, r *http.Request) {
 	fileName := r.URL.Query().Get("fileName")
 	filePath := r.URL.Query().Get("filePath")
 	start := r.URL.Query().Get("start") == "true"
-	//cmd := strings.Join([]string{"tar", "-xmf", "-", "-C", "/"}, " ")
+
 	var cmd string
 	cmd = fmt.Sprintf("cat >> '%s'", fmt.Sprintf("%s/%s", filePath, fileName))
 	if start {
 		cmd = fmt.Sprintf("cat > '%s'", fmt.Sprintf("%s/%s", filePath, fileName))
 	}
+	//cmd = strings.Join([]string{"tar", "-xmf", "-", "-C", "/","cat "}, " ")
+
 	req := clientset.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Namespace(namespace).
@@ -106,7 +110,7 @@ func (f *FileManager) UploadHandler(w http.ResponseWriter, r *http.Request) {
 		Tty:    false,
 	})
 	if err != nil {
-		fmt.Fprintln(w, err.Error())
+		fmt.Println(err)
 		return
 	}
 
@@ -114,18 +118,15 @@ func (f *FileManager) UploadHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (f *FileManager) DownloadHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "测试下载")
+	fmt.Println("测试下载")
+	var cmd string
 
-	queryParams := r.URL.Query()
-	filename, present := queryParams["filename"]
-	if !present || len(filename) != 1 {
-		http.Error(w, "filename query param missing or multiple provided", http.StatusBadRequest)
-		return
-	}
-
-	podName := "podName"     // fill this
-	containerName := "nginx" // and this, according to your situation
-	namespace := "default"   // and this too
+	namespace := r.URL.Query().Get("namespace")
+	podName := r.URL.Query().Get("podName")
+	containerName := r.URL.Query().Get("containerName")
+	fileName := r.URL.Query().Get("fileName")
+	filePath := r.URL.Query().Get("filePath")
+	cmd = fmt.Sprintf("cat '%s'", fmt.Sprintf("%s/%s", filePath, fileName))
 
 	req := clientset.CoreV1().RESTClient().Post().
 		Resource("pods").
@@ -134,7 +135,7 @@ func (f *FileManager) DownloadHandler(w http.ResponseWriter, r *http.Request) {
 		SubResource("exec").
 		VersionedParams(&corev1.PodExecOptions{
 			Container: containerName,
-			Command:   []string{"cat", "/root/" + filename[0]},
+			Command:   []string{"sh", "-c", cmd},
 			Stdout:    true,
 			Stderr:    true,
 		}, scheme.ParameterCodec)
