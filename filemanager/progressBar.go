@@ -40,7 +40,7 @@ func getKey(containerName, podName, namespace, filePath, fileName, opId string) 
 }
 
 func ProgressBar(cr *CountingReader, finishChan chan struct{}, key string) {
-	tick := time.Tick(100 * time.Millisecond)
+	tick := time.Tick(500 * time.Millisecond)
 	finish := false
 
 	curChan := GetProgressChan(key)

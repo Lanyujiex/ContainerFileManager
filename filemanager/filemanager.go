@@ -166,3 +166,43 @@ func (f *FileManager) DownloadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
+
+func (f *FileManager) ListDir(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("测试查询")
+	var cmd string
+
+	namespace := r.URL.Query().Get("namespace")
+	podName := r.URL.Query().Get("podName")
+	containerName := r.URL.Query().Get("containerName")
+	//fileName := r.URL.Query().Get("fileName")
+	filePath := r.URL.Query().Get("filePath")
+	//cmd = fmt.Sprintf("ls -lQ --color=never '%s'", fmt.Sprintf("%s/%s", filePath, fileName))
+	cmd = fmt.Sprintf("ls -lQ --color=never '%s'", filePath)
+	req := clientset.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Namespace(namespace).
+		Name(podName).
+		SubResource("exec").
+		VersionedParams(&corev1.PodExecOptions{
+			Container: containerName,
+			Command:   []string{"sh", "-c", cmd},
+			Stdout:    true,
+			Stderr:    true,
+		}, scheme.ParameterCodec)
+
+	executor, err := remotecommand.NewSPDYExecutor(config, "POST", req.URL())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	err = executor.Stream(remotecommand.StreamOptions{
+		Stdout: w,
+		Stderr: os.Stderr,
+		Tty:    false,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
